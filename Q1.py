@@ -35,78 +35,37 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-oztour = pd.read_csv('TourismData_v3.csv')
-
+file_path = "TourismData_v3.csv"  
+oztour = pd.read_csv(file_path)
 
 
 oztour['Year'] = oztour['Year'].ffill()
 
 
-oztour['Month'] = oztour['Month'].astype(str).str.strip()  
-oztour['Year'] = oztour['Year'].astype(int)
+
+list_comp = [oztour['Month'][i] + '-' + str(int(oztour['Year'][i])) for i in oztour.index]
+di = pd.to_datetime(list_comp).to_period('M')
+oztour.set_index(di,inplace=True)
+oztour.drop(['Year','Month'],axis=1,inplace=True)
 
 
-date_strings = oztour['Month'] + '-' + oztour['Year'].astype(str)
+
+grouper = [i[3:] for i in oztour.columns]
+PoT = oztour.T.groupby(grouper).sum().T
+State = oztour.T.groupby([i[0] for i in oztour.columns]).sum().T
+PoT_State = oztour.T.groupby([i[1] + i[3:] for i in oztour.columns]).sum().T
 
 
-print("First few date strings:", date_strings.head())
+print(PoT_State)
 
 
-date_times = pd.to_datetime(date_strings, format='%B-%Y', errors='coerce')
 
-
-print("Type of date_times:", type(date_times))
-print("Index type of date_times:", type(date_times.index))
-print("Dtype of date_times:", date_times.dtype)
-print("First few date_times values:", date_times.head())
-print("Any NaT values?", date_times.isna().any())
-
-if date_times.isna().any():
-    print("Warning: Some dates failed to parse. Check the following problematic entries:")
-    problematic_entries = oztour[date_times.isna()]
-    print(problematic_entries[['Month', 'Year']])
-
-
-date_periods = pd.Index(date_times).to_period('M')
-
-
-oztour.index = date_periods
-
-
-oztour.drop(['Year', 'Month'], axis=1, inplace=True)
-
-
-PoT = oztour.T.groupby(lambda x: x[3:]).sum().T
-
-
-State = oztour.T.groupby(lambda x: x[0]).sum().T
-
-
-PoT_State = oztour.T.groupby(lambda x: x[1] + x[3:]).sum().T
-
-
+state_pot = oztour.groupby([i[1]+i[3:] for i in oztour.columns],axis=1).sum()
 corr_mat = PoT_State.corr().round(2)
+print(corr_mat)
 
 
-PoT_State_By_Year = PoT_State.groupby(PoT_State.index.year).sum()
-
-
-plt.figure(figsize=(12, 6))
-PoT.plot(title="Monthly Data Summed by Purpose of Travel")
-plt.xlabel("Date")
-plt.ylabel("Number of Overnight Stays")
-plt.show()
-
-plt.figure(figsize=(12, 6))
-PoT.resample('Q').sum().plot(title="Quarterly Resampled Data")
-plt.xlabel("Date")
-plt.ylabel("Number of Overnight Stays")
-plt.show()
-
-plt.figure(figsize=(12, 6))
-PoT.resample('Y').sum().plot(title="Yearly Resampled Data")
-plt.xlabel("Date")
-plt.ylabel("Number of Overnight Stays")
-plt.show()
+PoT_State_By_Year = state_pot.groupby(state_pot.index.year,axis=0).sum()
+print(PoT_State_By_Year)
 
 
